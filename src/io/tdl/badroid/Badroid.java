@@ -1,34 +1,28 @@
 /*
-TODO: long click => setLoop(sound[i], loopMode[i] = !loopMode[i]);
+TODO: long click => setLooping(true);
 http://developer.android.com/reference/android/view/View.html#setLongClickable(boolean)
 */
 package io.tdl.badroid;
 
-import java.io.IOException;
-
 import android.app.Activity;
 import android.content.Context;
-import android.content.res.AssetFileDescriptor;
-import android.content.res.AssetManager;
 import android.media.AudioManager;
-import android.media.SoundPool;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 
 public class Badroid extends Activity
 {
-  static final String  TAG         =  "Badroid";
-  static final int     PAD_N       =  4;    // pad number
-  static final float   FULL        =  1.0f; // play volume
-  static final int     LOOP_OFF    =  0;
-  static final int     LOOP_ON     = -1;
-  static final int[]   BUTTONS     = {R.id.button0, R.id.button1,
-                                      R.id.button2, R.id.button3};
-  SoundPool     soundPool   = new SoundPool(PAD_N, 3, 0);
-  PlayButton[]  button      = new PlayButton[PAD_N];
-  boolean       isMuted     = false;
-  AudioManager  audio;
+  static final String TAG     =  "Badroid";
+  static final int    PAD_N   =  4;    // pad number
+  static final int[]  BUTTONS = {R.id.button0, R.id.button1,
+                                 R.id.button2, R.id.button3};
+  static final int[]  SOUNDS  = {R.raw.sound0, R.raw.sound1,
+                                 R.raw.sound2, R.raw.sound3};
+  PlayButton[]        button  = new PlayButton[PAD_N];
+  boolean             isMuted = false;
+  AudioManager        audio;
 
   @Override public void onCreate(Bundle savedInstanceState)
   {
@@ -53,24 +47,22 @@ public class Badroid extends Activity
 
   private void initAudio()
   {
-    String name;
-    AssetManager assetManager = getAssets();
-    AssetFileDescriptor fileDescriptor;
-    audio = (AudioManager) Badroid.this.getSystemService(Context.AUDIO_SERVICE);
-    button[0].loopMode = button[1].loopMode = LOOP_ON; // TODO with long click
+    audio = (AudioManager) /*Badroid.this.*/getSystemService(Context.AUDIO_SERVICE);
+    button[0].isLooping = button[1].isLooping = true; // TODO with long click
 
     for (int i=0; i<PAD_N; i++)
     {
-      name = "sound" + String.valueOf(i) + ".ogg"; // in "assets" folder
       try
       {
-        fileDescriptor  = assetManager.openFd(name);
-        button[i].sound = soundPool.load(fileDescriptor, 1); // 1 = default
+        /* TODO use popup to load sounds from sdcard, example:
+http://developer.android.com/resources/samples/ApiDemos/src/com/example/android/apis/media/MediaPlayerDemo_Audio.html */
+        button[i].mediaPlayer = MediaPlayer.create(this, SOUNDS[i]);
+        button[i].mediaPlayer.prepareAsync();
         Log.v(TAG, "sound " + i + " out of " + PAD_N + ": loaded.");
       }
-      catch (IOException e)
+      catch (IllegalStateException e)
       {
-        Log.e(TAG, "!!! FAILED TO LOAD SAMPLE " + name + " !!!");
+        Log.e(TAG, "!!! FAILED TO PREPARE SAMPLE " + i + " !!!");
         e.printStackTrace();
       }
     }
@@ -78,49 +70,71 @@ public class Badroid extends Activity
 
   private void clickHandle(View v)
   {
-    PlayButton channel = (PlayButton)v;
+    PlayButton sound = (PlayButton)v;
 
-    if ( channel.loopMode == LOOP_ON )
+    sound.setText(getString(sound.mediaPlayer.isPlaying() ?
+                            R.string.play_str :
+                            R.string.stop_str));
+
+    if (sound.mediaPlayer.isPlaying())
     {
-      channel.setText(getString(channel.isPlaying ?
-                                R.string.play_str :
-                                R.string.stop_str));
-      if (channel.isPlaying)
-        stop(channel);
-      else // isPlaying == false
-        play(channel);
-      
-      channel.isPlaying = !channel.isPlaying;
+      stop(sound);
+      if (!sound.isLooping)
+        play(sound); // TODO test delay
     }
-    else // LOOP_OFF:
+    else
+      play(sound);
+  }
+
+  private void play(PlayButton sound)
+  {
+    try
     {
-      if (!channel.is1stPlay)
-        stop(channel);
-      play(channel);
+      sound.mediaPlayer.start();
+      sound.mediaPlayer.setLooping(sound.isLooping); // TODO long click choice
+    }
+    catch (IllegalStateException e)
+    {
+      Log.e(TAG, "!!! ERROR WITH SAMPLE " +
+                 sound.mediaPlayer.getAudioSessionId() + " !!!");
+      e.printStackTrace();
     }
   }
-  
+
+  private void stop(PlayButton sound)
+  {
+    try
+    {
+      sound.mediaPlayer.stop();
+      sound.mediaPlayer.prepareAsync();
+    }
+    catch (IllegalStateException e)
+    {
+      Log.e(TAG, "!!! ERROR WITH SAMPLE " +
+                 sound.mediaPlayer.getAudioSessionId() + " !!!");
+      e.printStackTrace();
+    }
+  }
+
   public void toggleClick(View v)
   {
-    Log.d(TAG, "toggle button state: " + (isMuted? "OFF" : "ON"));
-    
+    Log.d(TAG, "mute state: " + (isMuted? "OFF" : "ON"));
+
     audio.setStreamMute(AudioManager.STREAM_MUSIC, (isMuted? false : true)); 
     isMuted = !isMuted;
   }
-  
-  private void play(PlayButton channel)
-  {
-    channel.streamID = soundPool.play(channel.sound,
-                                      FULL,FULL, 0,
-                                      channel.loopMode, 1);
-    if (channel.streamID == 0)
-      Log.e(TAG, "!!! FAILED TO READ SAMPLE " + channel.streamID + " !!!");
 
-    channel.is1stPlay = false;
+  @Override protected void onDestroy()
+  {
+    super.onDestroy();
+//*
+    for (int i=0; i<PAD_N; i++)
+      if (button[i].mediaPlayer != null)
+      {
+        button[i].mediaPlayer.release();
+        button[i].mediaPlayer = null;
+      }
+//*/
   }
 
-  private void stop(PlayButton channel)
-  {
-    soundPool.stop(channel.streamID);
-  }
 }

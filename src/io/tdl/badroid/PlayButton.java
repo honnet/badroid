@@ -1,16 +1,14 @@
 package io.tdl.badroid;
 
 import android.content.Context;
+import android.media.MediaPlayer;
 import android.util.AttributeSet;
 import android.widget.Button;
 
 class PlayButton extends Button
 {
-  int         sound;
-  int         streamID;
-  boolean     isPlaying;
-  boolean     is1stPlay;
-  int         loopMode;
+  boolean     isLooping;
+  MediaPlayer mediaPlayer;
 
   // TODO getters & setters !!!
   
@@ -28,10 +26,7 @@ class PlayButton extends Button
   
   private void init()
   {
-    this.sound     = 0;
-    this.streamID  = 0;
-    this.isPlaying = false;
-    this.is1stPlay = true;
-    this.loopMode  = Badroid.LOOP_OFF;
+    this.isLooping   = false;
+    this.mediaPlayer = new MediaPlayer();
   }
 }
