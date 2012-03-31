@@ -1,7 +1,7 @@
 Welcome to the Badroid project !
 
 The application called badroid, Body Air Drum for android, is an evolution of
-an existing project: github.com/honnet/BAD
+an existing project: http://github.com/honnet/BAD
 
 The basical idea is to be able to wirelessly trigger sounds using sensors on
 the body. For the moment, we use BAD with a computer in which a software can
